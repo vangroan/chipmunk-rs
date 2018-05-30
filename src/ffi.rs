@@ -1,7 +1,7 @@
 
 //! Provides raw ffi bindings to the Chipmunk2D library.
 
-use libc::{c_double, c_int, c_uint, uintptr_t};
+use libc::{c_double, c_int, c_uint, c_uchar, uintptr_t, c_void};
 
 #[repr(C)]
 #[derive(Clone,Copy,PartialEq,Debug)]
@@ -28,9 +28,13 @@ impl CPVect {
 
 pub const CP_NO_GROUP: CPGroup = 0;
 pub const CP_ALL_CATEGORIES: CPBitmask = !0;
+pub const CP_WILDCARD_COLLISION_TYPE: CPCollisionType = !0;
 
 /// A Chipmunk2D floating point value.
 pub type CPFloat = c_double;
+
+/// A Chipmunk2D boolean value.
+pub type CPBool = c_uchar;
 
 /// A Chipmunk2D Space.
 pub enum CPSpace {}
@@ -59,8 +63,26 @@ pub struct CPShapeFilter {
 /// A Chipmunk2D Group.
 pub type CPGroup = uintptr_t;
 
-/// A Chipmunk2D Bitmask
+/// A Chipmunk2D Bitmask.
 pub type CPBitmask = c_uint;
+
+/// A Chipmunk2D CollisionType.
+pub type CPCollisionType = uintptr_t;
+
+pub type CPDataPointer = c_void;
+
+// typedef cpBool(* cpCollisionBeginFunc)(cpArbiter *arb, cpSpace *space, cpDataPointer userData)
+pub type CPCollisionBeginFunc = extern "C" fn(*const CPArbiter, *const CPSpace, CPDataPointer) -> CPBool;
+
+#[repr(C)]
+pub struct CPArbiter {
+
+}
+
+#[repr(C)]
+pub struct CPCollisionHandler {
+    begin_func: CPCollisionBeginFunc,
+}
 
 /// A Chipmunk2D Constraint.
 pub enum CPConstraint {}
@@ -314,10 +336,8 @@ extern "C" {
     // pub fn cpShapeSetSensor(shape: *const CPShape, value: cpBool);
     // pub fn cpShapeGetSurfaceVelocity(shape: *const CPShape) -> CPVect;
     // pub fn cpShapeSetSurfaceVelocity(shape: *const CPShape, value: CPVect);
-    // pub fn cpShapeGetCollisionType(shape: *const CPShape) -> CPCollisionType;
-    // pub fn cpShapeSetCollisionType(shape: *const CPShape, value: cpCollisionType);
-    // pub fn cpShapeGetFilter(shape: *const CPShape) -> CPShapeFilter;
-    // pub fn cpShapeSetFilter(shape: *const CPShape, filter: cpShapeFilter);
+    pub fn cpShapeGetCollisionType(shape: *const CPShape) -> CPCollisionType;
+    pub fn cpShapeSetCollisionType(shape: *const CPShape, value: CPCollisionType);
     pub fn cpShapeGetFilter(shape: *const CPShape) -> CPShapeFilter;
     pub fn cpShapeSetFilter(shape: *const CPShape, filter: CPShapeFilter);
 
