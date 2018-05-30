@@ -1,7 +1,7 @@
 
 //! Provides raw ffi bindings to the Chipmunk2D library.
 
-use libc::{c_double, c_int, c_uint};
+use libc::{c_double, c_int, c_uint, uintptr_t};
 
 #[repr(C)]
 #[derive(Clone,Copy,PartialEq,Debug)]
@@ -26,6 +26,9 @@ impl CPVect {
     }
 }
 
+pub const CP_NO_GROUP: CPGroup = 0;
+pub const CP_ALL_CATEGORIES: CPBitmask = !0;
+
 /// A Chipmunk2D floating point value.
 pub type CPFloat = c_double;
 
@@ -43,6 +46,21 @@ pub enum CPCircleShape {}
 
 /// A Chipmunk2D PolyShape.
 pub enum CPPolyShape {}
+
+/// A Chipmunk2D ShapeFilter.
+#[repr(C)]
+#[derive(Debug)]
+pub struct CPShapeFilter {
+    pub group: CPGroup,
+    pub categories: CPBitmask,
+    pub mask: CPBitmask,
+}
+
+/// A Chipmunk2D Group.
+pub type CPGroup = uintptr_t;
+
+/// A Chipmunk2D Bitmask
+pub type CPBitmask = c_uint;
 
 /// A Chipmunk2D Constraint.
 pub enum CPConstraint {}
@@ -189,7 +207,7 @@ extern "C" {
     pub fn cpDampedSpringAlloc() -> *const CPDampedSpring;
     pub fn cpDampedSpringInit(joint: *const CPDampedSpring, a: *const CPBody, b: *const CPBody, anchorA: CPVect, anchorB: CPVect, restLength: CPFloat, stiffness: CPFloat, damping: CPFloat) -> *const CPDampedSpring;
     pub fn cpDampedSpringNew(a: *const CPBody, b: *const CPBody, anchorA: CPVect, anchorB: CPVect, restLength: CPFloat, stiffness: CPFloat, damping: CPFloat) -> *const CPConstraint;
-    
+
     pub fn cpDampedSpringGetanchorA(constraint: *const CPConstraint) -> CPVect;
     pub fn cpDampedSpringSetanchorA(constraint: *const CPConstraint, value: CPVect);
     pub fn cpDampedSpringGetanchorB(constraint: *const CPConstraint) -> CPVect;
@@ -300,6 +318,8 @@ extern "C" {
     // pub fn cpShapeSetCollisionType(shape: *const CPShape, value: cpCollisionType);
     // pub fn cpShapeGetFilter(shape: *const CPShape) -> CPShapeFilter;
     // pub fn cpShapeSetFilter(shape: *const CPShape, filter: cpShapeFilter);
+    pub fn cpShapeGetFilter(shape: *const CPShape) -> CPShapeFilter;
+    pub fn cpShapeSetFilter(shape: *const CPShape, filter: CPShapeFilter);
 
     // Circle Shape
     pub fn cpCircleShapeNew(body: *const CPBody,

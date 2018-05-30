@@ -427,7 +427,7 @@ impl Space {
         unsafe { cpSpaceRemoveConstraint(self.ptr, borrowed.to_constraint()); }
         self.simple_motors.remove(&borrowed.ptr);
     }
-    
+
     /// See [Chipmunk Spaces](http://chipmunk-physics.net/release/Chipmunk-7.x/Chipmunk-7.0.1-Docs/#cpSpace).
     pub fn contains_constraint<C>(&self, constraint: C) -> bool
         where C: Constraint
@@ -663,17 +663,17 @@ impl PinJoint {
     pub fn anchor_a(&self) -> CPVect {
         unsafe { cpPinJointGetanchorA(self.to_constraint()) }
     }
-    
+
     /// See [Chipmunk Pin Joint](http://chipmunk-physics.net/release/Chipmunk-7.x/Chipmunk-7.0.1-Docs/#ConstraintTypes-cpPinJoint).
     pub fn anchor_b(&self) -> CPVect {
         unsafe { cpPinJointGetanchorB(self.to_constraint()) }
     }
-    
+
     /// See [Chipmunk Pin Joint](http://chipmunk-physics.net/release/Chipmunk-7.x/Chipmunk-7.0.1-Docs/#ConstraintTypes-cpPinJoint).
     pub fn dist(&self) -> CPFloat {
         unsafe { cpPinJointGetDist(self.to_constraint()) }
     }
-    
+
     /// See [Chipmunk Pin Joint](http://chipmunk-physics.net/release/Chipmunk-7.x/Chipmunk-7.0.1-Docs/#ConstraintTypes-cpPinJoint).
     pub fn setanchor_a(&self, value: CPVect) {
         unsafe { cpPinJointSetanchorA(self.to_constraint(), value) }
@@ -910,7 +910,7 @@ impl DampedSpring {
             }
         }
     }
-    
+
     /// See [Chipmunk Pin Joint](http://chipmunk-physics.net/release/Chipmunk-7.x/Chipmunk-7.0.1-Docs/#ConstraintTypes-cpDampedSpring).
     pub fn anchor_a(&self) -> CPVect {
         unsafe { cpDampedSpringGetanchorA(self.to_constraint()) }
@@ -1235,7 +1235,6 @@ impl SimpleMotor {
     pub fn set_rate(&self, value: CPFloat) {
         unsafe { cpSimpleMotorSetRate(self.to_constraint(), value) }
     }
-
 }
 
 impl Constraint for SimpleMotor {
@@ -1283,6 +1282,10 @@ pub trait Shape: BaseShape {
         unsafe { cpShapeGetFriction(self.to_shape()) }
     }
 
+    fn filter(&self) -> ShapeFilter {
+        unsafe { ShapeFilter::from_filter(cpShapeGetFilter(self.to_shape())) }
+    }
+
     /// See [Chipmunk Collision Shapes](http://chipmunk-physics.net/release/Chipmunk-7.x/Chipmunk-7.0.1-Docs/#cpShape).
     fn set_body(&mut self, body: Body) {
         unsafe {
@@ -1301,6 +1304,12 @@ pub trait Shape: BaseShape {
     fn set_friction(&mut self, value: f64) {
         unsafe {
             cpShapeSetFriction(self.to_shape(), value);
+        }
+    }
+
+    fn set_filter(&mut self, filter: ShapeFilter) {
+        unsafe {
+            cpShapeSetFilter(self.to_shape(), filter.into_filter());
         }
     }
 }
@@ -1425,6 +1434,41 @@ impl Shape for PolyShape {
     }
 }
 
+/// A ShapeFiler. See [Fast Collision Filtering using cpShapeFilter](http://chipmunk-physics.net/release/Chipmunk-7.x/Chipmunk-7.0.1-Docs/#cpShape-Filtering)
+#[derive(Debug)]
+pub struct ShapeFilter {
+    inner: CPShapeFilter,
+}
+
+impl ShapeFilter {
+    #[inline]
+    pub fn new(group: CPGroup, categories: CPBitmask, mask: CPBitmask) -> ShapeFilter {
+        ShapeFilter {
+            inner: CPShapeFilter { group, categories, mask },
+        }
+    }
+
+    pub fn from_filter(filter: CPShapeFilter) -> ShapeFilter {
+        ShapeFilter { inner: filter }
+    }
+
+    pub fn into_filter(self) -> CPShapeFilter {
+        self.inner
+    }
+
+    pub fn group(&self) -> CPGroup {
+        self.inner.group
+    }
+
+    pub fn categories(&self) -> CPBitmask {
+        self.inner.categories
+    }
+
+    pub fn mask(&self) -> CPBitmask {
+        self.inner.mask
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -1495,5 +1539,68 @@ mod tests {
         space.step(1.0);
         assert_eq!(CPVect::new(4.0, 8.0), body_handle.borrow().velocity());
         assert_eq!(CPVect::new(5.0, 10.0), body_handle.borrow().position());
+    }
+
+    #[test]
+    fn filtering() {
+        let mut space: Space = Space::new();
+
+        let player_cat: CPBitmask = 1 << 0;
+        let enemy_cat: CPBitmask = 1 << 1;
+        let wall_cat: CPBitmask = 1 << 2;
+        let all_cat = ::std::u32::MAX;
+        println!("ALL: {}", all_cat);
+
+        // Create a Player
+        // Players and Enemies do not collide.
+        let player_handle = space.add_body(Body::new_dynamic(1.0, 1.0));
+        let player_circle_handle = space.add_shape(Box::new(CircleShape::new(&player_handle, 1.0, CPVect::new(0.0, 0.0))));
+        player_circle_handle.borrow_mut().set_filter(ShapeFilter::new(CP_NO_GROUP, player_cat, wall_cat));
+        player_handle.borrow_mut().set_position(CPVect::new(0.0, 0.0));
+
+        // Create an Enemy
+        let enemy_handle = space.add_body(Body::new_dynamic(1.0, 1.0));
+        let enemy_circle_handle = space.add_shape(Box::new(CircleShape::new(&enemy_handle, 1.0, CPVect::new(0.0, 0.0))));
+        enemy_circle_handle.borrow_mut().set_filter(ShapeFilter::new(CP_NO_GROUP, enemy_cat, wall_cat));
+        enemy_handle.borrow_mut().set_position(CPVect::new(1.0, 0.0));
+
+        // Create a Wall
+        // Static bodies cannot be moved after being added to a space.
+        let mut wall_body = Body::new_static();
+        wall_body.set_position(CPVect::new(0.0, 2.0));
+        let wall_handle = space.add_body(wall_body);
+        let wall_box_handle = space.add_shape(Box::new(PolyShape::new_box(&wall_handle, 1.0, 1.0, 0.0)));
+        wall_box_handle.borrow_mut().set_filter(ShapeFilter::new(CP_NO_GROUP, wall_cat, player_cat | enemy_cat));
+
+        // Ensure data passed in was set as expected.
+        let player_filter = player_circle_handle.borrow().filter();
+        assert_eq!(player_filter.group(), CP_NO_GROUP);
+        assert_eq!(player_filter.categories(), player_cat);
+        assert_eq!(player_filter.mask(), wall_cat);
+
+        // Move the Player and check that it's not blocked by the Enemy
+        player_handle.borrow_mut().set_velocity(CPVect::new(0.5, 0.0));
+        space.step(1.0);
+        assert_eq!(CPVect::new(0.5, 0.0), player_handle.borrow().velocity());
+        assert_eq!(CPVect::new(0.5, 0.0), player_handle.borrow().position());
+        
+        // Player should now pass through Enemy
+        space.step(1.0);
+        assert_eq!(CPVect::new(0.5, 0.0), player_handle.borrow().velocity());
+        assert_eq!(CPVect::new(1.0, 0.0), player_handle.borrow().position());
+        space.step(1.0);
+        assert_eq!(CPVect::new(0.5, 0.0), player_handle.borrow().velocity());
+        assert_eq!(CPVect::new(1.5, 0.0), player_handle.borrow().position());
+
+        // Player should be stopped by Wall
+        player_handle.borrow_mut().set_position(CPVect::new(0.0, 1.0));
+        player_handle.borrow_mut().set_velocity(CPVect::new(0.0, 0.5));
+
+        space.step(1.0);
+        assert_ne!(CPVect::new(0.0, 0.5), player_handle.borrow().velocity());
+
+        space.step(1.0);
+        assert_ne!(CPVect::new(0.0, 0.5), player_handle.borrow().velocity());
+        assert_ne!(CPVect::new(0.0, 2.0), player_handle.borrow().position());
     }
 }
