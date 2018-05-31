@@ -1282,6 +1282,14 @@ pub trait Shape: BaseShape {
         unsafe { cpShapeGetFriction(self.to_shape()) }
     }
 
+    fn sensor(&self) -> bool {
+        unsafe { cpShapeGetSensor(self.to_shape()) != 0 }
+    }
+
+    fn collision_type(&self) -> CPCollisionType {
+        unsafe { cpShapeGetCollisionType(self.to_shape()) }
+    }
+
     fn filter(&self) -> ShapeFilter {
         unsafe { ShapeFilter::from_filter(cpShapeGetFilter(self.to_shape())) }
     }
@@ -1304,6 +1312,18 @@ pub trait Shape: BaseShape {
     fn set_friction(&mut self, value: f64) {
         unsafe {
             cpShapeSetFriction(self.to_shape(), value);
+        }
+    }
+
+    fn set_sensor(&mut self, value: bool) {
+        unsafe {
+            cpShapeSetSensor(self.to_shape(), value as CPBool);
+        }
+    }
+
+    fn set_collision_type(&self, value: CPCollisionType) {
+        unsafe {
+            cpShapeSetCollisionType(self.to_shape(), value);
         }
     }
 

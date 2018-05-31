@@ -74,14 +74,30 @@ pub type CPDataPointer = c_void;
 // typedef cpBool(* cpCollisionBeginFunc)(cpArbiter *arb, cpSpace *space, cpDataPointer userData)
 pub type CPCollisionBeginFunc = extern "C" fn(*const CPArbiter, *const CPSpace, CPDataPointer) -> CPBool;
 
+// typedef cpBool(* cpCollisionPreSolveFunc)(cpArbiter *arb, cpSpace *space, cpDataPointer userData)
+pub type CPCollisionPreSolveFunc = extern "C" fn(*const CPArbiter, *const CPSpace, CPDataPointer) -> CPBool;
+
+// typedef void(*   cpCollisionPostSolveFunc )(cpArbiter *arb, cpSpace *space, cpDataPointer userData)
+pub type CPCollisionPostSolveFunc = extern "C" fn(*const CPArbiter, *const CPSpace, CPDataPointer);
+
+// typedef void(*   cpCollisionSeparateFunc )(cpArbiter *arb, cpSpace *space, cpDataPointer userData)
+pub type CPCollisionSeparateFunc = extern "C" fn(*const CPArbiter, *const CPSpace, CPDataPointer);
+
 #[repr(C)]
 pub struct CPArbiter {
-
+    e: CPFloat,
+    u: CPFloat,
 }
 
 #[repr(C)]
 pub struct CPCollisionHandler {
-    begin_func: CPCollisionBeginFunc,
+    pub type_a: CPCollisionType,
+    pub type_b: CPCollisionType,
+    pub begin_func: Option<CPCollisionBeginFunc>,
+    pub pre_solve_func: Option<CPCollisionPreSolveFunc>,
+    pub post_solve_func: Option<CPCollisionPostSolveFunc>,
+    pub separate_func: Option<CPCollisionSeparateFunc>,
+    pub user_data: CPDataPointer,
 }
 
 /// A Chipmunk2D Constraint.
@@ -146,6 +162,7 @@ extern "C" {
 
     // Space Operations
     pub fn cpSpaceStep(space: *const CPSpace, dt: CPFloat);
+    pub fn cpSpaceAddCollisionHandler(space: *const CPSpace, a: CPCollisionType, b: CPCollisionType) -> *mut CPCollisionHandler;
     pub fn cpSpaceAddShape(space: *const CPSpace, shape: *const CPShape) -> *const CPShape;
     pub fn cpSpaceAddBody(space: *const CPSpace, body: *const CPBody) -> *const CPBody;
     pub fn cpSpaceRemoveShape(space: *const CPSpace, shape: *const CPShape);
@@ -332,8 +349,8 @@ extern "C" {
     pub fn cpShapeGetFriction(shape: *const CPShape) -> CPFloat;
     pub fn cpShapeSetFriction(shape: *const CPShape, value: CPFloat);
     // pub fn cpShapeGetBB(shape: *const CPShape) -> CPBB;
-    // pub fn cpShapeGetSensor(shape: *const CPShape) -> CPBool;
-    // pub fn cpShapeSetSensor(shape: *const CPShape, value: cpBool);
+    pub fn cpShapeGetSensor(shape: *const CPShape) -> CPBool;
+    pub fn cpShapeSetSensor(shape: *const CPShape, value: CPBool);
     // pub fn cpShapeGetSurfaceVelocity(shape: *const CPShape) -> CPVect;
     // pub fn cpShapeSetSurfaceVelocity(shape: *const CPShape, value: CPVect);
     pub fn cpShapeGetCollisionType(shape: *const CPShape) -> CPCollisionType;
